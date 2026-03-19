@@ -1,26 +1,41 @@
 #include <Arduino.h>
 
+// Na Arduino Leonardo LED_BUILTIN (Pin 13) obsługuje PWM (analogWrite)
+const int ledPin = LED_BUILTIN; 
+
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW); 
+  pinMode(ledPin, OUTPUT);
+  analogWrite(ledPin, 0); // Startujemy od zera
   
   Serial.begin(9600); 
 }
 
 void loop() {
   if (Serial.available() > 0) {
-    // ZMIANA 1: Nasłuchujemy do znaku CR ('\r'), który wyśle NIS
     String command = Serial.readStringUntil('\r');
     command.trim(); 
     
     if (command == "START") {
-      digitalWrite(LED_BUILTIN, HIGH);
-      
-      // ZMIANA 2: Używamy print zamiast println i ręcznie dodajemy znak CR ('\r') na końcu
-      Serial.print("DONE\r"); 
+      analogWrite(ledPin, 255); // Pełna jasność
+      Serial.print("DONE\r");
     } 
     else if (command == "STOP") {
-      digitalWrite(LED_BUILTIN, LOW);
+      analogWrite(ledPin, 0);   // Wyłączona
+      Serial.print("DONE\r");
+    }
+    // Nowa logika: jeśli komenda zaczyna się od "SET:"
+    else if (command.startsWith("SET:")) {
+      // Wycinamy samą liczbę po dwukropku
+      int brightnessPercent = command.substring(4).toInt(); 
+      
+      // Ograniczamy wartość do zakresu 0-100
+      brightnessPercent = constrain(brightnessPercent, 0, 100);
+      
+      // Mapujemy 0-100% na zakres 0-255 dla analogWrite
+      int pwmValue = map(brightnessPercent, 0, 100, 0, 255);
+      
+      analogWrite(ledPin, pwmValue);
+      
       Serial.print("DONE\r");
     }
   }
