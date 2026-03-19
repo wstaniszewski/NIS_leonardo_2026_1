@@ -4,27 +4,30 @@ import time
 
 def run(imgs: tuple[limjob.Image], Job: limjob.JobParam, macro: limjob.MacroParam, ctx: limjob.RunContext):
     port_id = 10
+    mapa_mocy = {1: 10, 2: 40, 3: 70, 4: 100}
     
-    # Przykładowa jasność, którą chcesz ustawić (0 do 100)
-    jasnosc = 20  
+    # Bezpieczne pobranie parametru
+    wybrany = macro.IntParam[0] if len(macro.IntParam) > 0 else 1
+    procent = mapa_mocy.get(wybrany, 10)
 
     try:
+        # 1. Próba otwarcia
         nis.mac.OpenPort(port_id, 9600, 8, "N", 1)
+        time.sleep(0.05)  # KRUCIALNE: Krótka pauza na stabilizację portu
         
-        # Wysyłamy nową komendę SET:wartość
-        # Formatowanie f-string w Pythonie wstawi liczbę do tekstu
-        command = f"SET:{jasnosc}"
+        # 2. Zmieniamy ostatni parametr na 0 (nie czekaj na odpowiedź), 
+        # jeśli nie potrzebujemy potwierdzenia od Arduino. 
+        # To zapobiega "wiszeniu" NISa, gdy Arduino milczy.
+        nis.mac.WritePort(port_id, f"SET:{procent}\r", 1, 0)
         
-        print(f"Ustawiam jasność na: {jasnosc}%")
-        nis.mac.WritePort(port_id, command, 1, 1)
-        
-        # Czekamy np. 2 sekundy, żeby zobaczyć efekt
-        time.sleep(2.0)
+        print(f"Wysłano: SET:{procent}%")
+        time.sleep(0.05) # Pauza przed zamknięciem
         
     except Exception as e:
-        print(f"Python Error: {e}")
-        
+        print(f"Błąd komunikacji: {e}")
     finally:
-        # Możesz zgasić diodę na koniec lub zostawić zapaloną
-        # nis.mac.WritePort(port_id, "STOP", 1, 1)
-        nis.mac.ClosePort(port_id)
+        # Zawsze zamykamy, ale dodajemy mały margines bezpieczeństwa
+        try:
+            nis.mac.ClosePort(port_id)
+        except:
+            pass
